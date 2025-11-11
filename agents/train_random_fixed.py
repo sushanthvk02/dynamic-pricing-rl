@@ -23,8 +23,8 @@ def run_baseline(policy: str, episodes: int = 200, seed: int = 0) -> pd.DataFram
 def main():
     os.makedirs("runs/csv", exist_ok=True)
     df = pd.concat(
-        [run_baseline("random", episodes=200, seed=42),
-         run_baseline("fixed",  episodes=200, seed=43)],
+        [run_baseline("random", episodes=20000, seed=42),
+         run_baseline("fixed",  episodes=20000, seed=43)],
         ignore_index=True
     )
     out = "runs/csv/baselines_rewards.csv"
