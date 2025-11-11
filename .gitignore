@@ -1,3 +1,4 @@
+# Python / venv
 __pycache__/
 *.pyc
 *.pyo
@@ -5,9 +6,13 @@ __pycache__/
 .venv/
 venv/
 
+# IDE / OS
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 
+# Ignore everything under runs/ by default
 runs/*
 
 !runs/plots/
@@ -20,5 +25,5 @@ runs/models/
 *.npy
 *.npz
 
-.DS_Store
-Thumbs.db
+*.csv
+!runs/csv/*summary*.csv
