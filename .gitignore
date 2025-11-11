@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -6,21 +5,20 @@ __pycache__/
 .venv/
 venv/
 
-# IDE
 .vscode/
 .idea/
 
-# Artifacts from runs
-runs/csv/
-runs/models/
-runs/plots/
+runs/*
 
-# Data / large files
+!runs/plots/
+!runs/plots/*.png
+
+!runs/csv/
+!runs/csv/*summary*.csv
+
+runs/models/
 *.npy
 *.npz
-*.png
-*.csv
 
-# OS
 .DS_Store
 Thumbs.db
