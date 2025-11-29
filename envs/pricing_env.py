@@ -83,15 +83,19 @@ class DynamicPricingEnv(gym.Env):
         self.last_realized_demand = 0.0
 
     def _sample_demand(self, price: float) -> float:
-        """
-        Linear demand with Gaussian noise:
-        demand = base_demand - price_sensitivity * price + Normal(0, demand_noise_std)
-        Clipped to [0, demand_cap].
-        """
+        """Nonlinear And seasonal demand function with noise."""
+        
+        #exponential decay demand function
+        mean_price_effect = self.base_demand * np.exp(-self.price_sensitivity * price)
+
+        # demand cycles over days (weekly seasonality)
+        seasonal_effect = 1.0 + 0.30 * np.sin(2 * np.pi * self.day / self.horizon_days)
+
         noise = self.rng.normal(0.0, self.demand_noise_std)
-        demand = self.base_demand - self.price_sensitivity * price + noise
+        demand = mean_price_effect * seasonal_effect + noise
         demand = float(np.clip(demand, 0.0, self.demand_cap))
         return demand
+
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict]:
         """Returns initial observation and info dict."""
