@@ -20,97 +20,97 @@ from typing import Optional, Tuple, Dict
 
 class DynamicPricingEnv(gym.Env):
     """
-    Single-product dynamic pricing with finite inventory and stochastic demand.
-
-    State  = [inventory (0..max_inventory), last_realized_demand (0..demand_cap), day (1..horizon_days)]
-    Action = price in [price_min, price_max]  (continuous)
-    Reward = price * sales - holding_cost_per_unit * remaining_inventory
-    Episode ends when inventory == 0 or day > horizon_days.
+    Dynamic pricing environment for a single product with finite inventory.
+    State = [inventory, last_realized_demand, day]
+    Action = continuous price in [price_min, price_max]
+    Reward = price * sales − holding_cost * remaining_inventory
+    Episode ends when inventory is 0 or horizon is exceeded.
     """
 
     metadata = {"render_modes": []}
 
     def __init__(
-            
-        # Initialization parameters
         self,
         seed: int = 0,
-        horizon_days: int = 30,               
-        max_inventory: int = 100,             
-        demand_cap: float = 50.0,               
-        price_min: float = 5.0,                
-        price_max: float = 25.0,               
-        base_demand: float = 50.0,              
-        price_sensitivity: float = 2.0,         
-        demand_noise_std: float = 5.0,          
-        holding_cost_per_unit: float = 0.1    
+        horizon_days: int = 30,
+        max_inventory: int = 300,
+        demand_cap: float = 50.0,
+        price_min: float = 5.0,
+        price_max: float = 25.0,
+        base_demand: float = 50.0,
+        price_sensitivity: float = 0.2,
+        demand_noise_std: float = 2.0,
+        holding_cost_per_unit: float = 0.1
     ):
         super().__init__()
 
         self.rng = np.random.default_rng(seed)
 
-        # Configuration
+        # Parameters
         self.horizon_days = int(horizon_days)
-        self.max_inventory = int(max_inventory)
+        self.max_inventory = float(max_inventory)
         self.demand_cap = float(demand_cap)
-        self.price_min, self.price_max = float(price_min), float(price_max)
+        self.price_min = float(price_min)
+        self.price_max = float(price_max)
         self.base_demand = float(base_demand)
         self.price_sensitivity = float(price_sensitivity)
         self.demand_noise_std = float(demand_noise_std)
         self.holding_cost_per_unit = float(holding_cost_per_unit)
 
-        # Action space: one continuous action (price)
+        self.episode_reward = 0.0
+
+        # Actions = continuous price directly in [min, max]
         self.action_space = spaces.Box(
             low=np.array([self.price_min], dtype=np.float32),
             high=np.array([self.price_max], dtype=np.float32),
             dtype=np.float32
         )
 
-        # Observation space: [inventory, last_realized_demand, day]
+        # Observation = inventory, last_demand, day
         self.observation_space = spaces.Box(
             low=np.array([0.0, 0.0, 1.0], dtype=np.float32),
-            high=np.array([float(self.max_inventory), self.demand_cap, float(self.horizon_days)], dtype=np.float32),
+            high=np.array([self.max_inventory, self.demand_cap, float(self.horizon_days)], dtype=np.float32),
             dtype=np.float32
         )
 
-        # Internal state
         self._reset_internal()
 
-    def _reset_internal(self) -> None:
-        """Reset internal episode variables."""
+    def _reset_internal(self):
         self.day = 1
         self.inventory = float(self.max_inventory)
         self.last_realized_demand = 0.0
 
     def _sample_demand(self, price: float) -> float:
-        """Nonlinear And seasonal demand function with noise."""
-        
-        #exponential decay demand function
+        """Exponential demand curve with mild seasonality + noise."""
         mean_price_effect = self.base_demand * np.exp(-self.price_sensitivity * price)
-
-        # demand cycles over days (weekly seasonality)
-        seasonal_effect = 1.0 + 0.30 * np.sin(2 * np.pi * self.day / self.horizon_days)
-
+        seasonal = 1.0 + 0.30 * np.sin(2 * np.pi * self.day / self.horizon_days)
         noise = self.rng.normal(0.0, self.demand_noise_std)
-        demand = mean_price_effect * seasonal_effect + noise
-        demand = float(np.clip(demand, 0.0, self.demand_cap))
-        return demand
+        demand = mean_price_effect * seasonal + noise
+        return float(np.clip(demand, 0.0, self.demand_cap))
 
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None
+    ) -> Tuple[np.ndarray, Dict]:
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict]:
-        """Returns initial observation and info dict."""
+        super().reset(seed=seed)
+
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+
         self._reset_internal()
-        obs = np.array([self.inventory, self.last_realized_demand, self.day], dtype=np.float32)
+        self.episode_reward = 0.0
+
+        obs = np.array(
+            [self.inventory, self.last_realized_demand, self.day],
+            dtype=np.float32
+        )
+
         return obs, {}
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
-        """
-        action: shape (1,) or scalar -> interpreted as price
-        returns: (obs, reward, terminated, truncated, info)
-        """
-
+    def step(self, action):
+        """Takes a price action and advances the environment one day."""
         if np.isscalar(action):
             price = float(action)
         else:
@@ -123,6 +123,7 @@ class DynamicPricingEnv(gym.Env):
         self.inventory = float(max(0.0, self.inventory - sales))
 
         reward = price * sales - self.holding_cost_per_unit * self.inventory
+        self.episode_reward += reward
 
         self.day += 1
         self.last_realized_demand = demand
@@ -135,4 +136,11 @@ class DynamicPricingEnv(gym.Env):
         )
 
         info = {"price": price, "sales": sales, "demand": demand}
-        return obs, float(reward), bool(terminated), False, info
+
+        if terminated:
+            info["episode"] = {
+                "r": float(self.episode_reward),
+                "l": int(self.day - 1)
+            }
+
+        return obs, float(reward), terminated, False, info

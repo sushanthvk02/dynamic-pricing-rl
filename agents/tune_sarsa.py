@@ -1,9 +1,9 @@
-# tune_qlearning.py
+# tune_sarsa.py
 
 import os, json, hashlib
 import numpy as np
 import pandas as pd
-from agents.train_qlearning import train_q_learning
+from agents.train_sarsa import train_sarsa
 
 
 def cid(cfg):
@@ -15,7 +15,7 @@ def run():
     os.makedirs("runs/csv", exist_ok=True)
     os.makedirs("runs/models", exist_ok=True)
 
-    # Hyperparameter grid
+    # Hyperparameter sweep grid
     grid = []
     for n_price_bins in [10, 20, 30]:
         for n_inv_bins in [8, 10, 12]:
@@ -39,12 +39,12 @@ def run():
 
     for cfg in grid:
         config_id = cid(cfg)
-        print(f"Running config {config_id}: {cfg}")
+        print(f"Running SARSA config {config_id}: {cfg}")
 
         per_seed_rewards = []
 
         for sd in seeds:
-            df, Q = train_q_learning(seed=sd, **cfg)
+            df, Q = train_sarsa(seed=sd, **cfg)
 
             df["config_id"] = config_id
             df["seed"] = sd
@@ -53,10 +53,10 @@ def run():
 
             all_rows.append(df)
 
-            rewards = df[df["algo"] == "Q-Learning"]["reward"].values
+            rewards = df[df["algo"] == "SARSA"]["reward"].values
             per_seed_rewards.append(rewards)
 
-        # Evaluate last 500 episodes mean + std
+        # last 500 episode performance
         lastN = 500
         means = [np.mean(r[-lastN:]) for r in per_seed_rewards]
         stds = [np.std(r[-lastN:]) for r in per_seed_rewards]
@@ -69,13 +69,13 @@ def run():
             **cfg
         ))
 
-    pd.concat(all_rows).to_csv("runs/csv/qlearning_tuning_full.csv", index=False)
+    pd.concat(all_rows).to_csv("runs/csv/sarsa_tuning_full.csv", index=False)
 
     leaderboard = pd.DataFrame(summaries).sort_values("mean_lastN", ascending=False)
-    leaderboard.to_csv("runs/csv/qlearning_tuning_summary.csv", index=False)
+    leaderboard.to_csv("runs/csv/sarsa_tuning_summary.csv", index=False)
 
-    print("\nTuning complete.")
-    print("Saved qlearning_tuning_full.csv and qlearning_tuning_summary.csv")
+    print("\nSARSA tuning complete.")
+    print("Saved sarsa_tuning_full.csv and sarsa_tuning_summary.csv")
 
 
 if __name__ == "__main__":

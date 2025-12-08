@@ -1,0 +1,40 @@
+venv\Scripts\activate
+
+python -m envs.smoke_test
+
+python -m agents.train_random_fixed
+
+python -m agents.train_qlearning 
+
+python -m agents.train_sarsa 
+
+python -m agents.tune_qlearning
+
+python -m agents.tune_sarsa
+
+python -m analysis.plot_all_agents_train
+
+python -m analysis.plot_q_train_vs_tune
+
+python -m analysis.plot_sarsa_train_vs_tune
+
+python -m analysis.plot_all_agents_train_smoothed
+
+python -m analysis.plot_q_train_vs_tune_smoothed
+
+python -m analysis.plot_sarsa_train_vs_tune_smoothed
+
+python -m analysis.plot_reward_distributions
+
+python -m analysis.plot_q_policy_heatmap
+
+python -m analysis.plot_q_value_heatmap
+
+python -m analysis.plot_sarsa_policy_heatmap
+
+python -m analysis.plot_action_histograms
+
+python -m analysis.plot_summary_table
+
+python -m analysis.plot_sellout_distribution
+
